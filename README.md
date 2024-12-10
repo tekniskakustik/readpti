@@ -1,4 +1,4 @@
-# Read B&amp;K Pulse PTI-files in Matlab
+# Read B&amp;K Pulse PTI files in Matlab
 ## Examples:
 #### Read file, using PTI structure:
 [success, S] = dataio.pulse.pti.read(filepath);
@@ -7,9 +7,10 @@
 \
 \
 \
-License:
-\
-BSD 3-Clause, see LICENSE for details
+License: BSD 3-Clause, see LICENSE for details
 \
 \
 Copyright (c) 2024, NVH Group AB. All rights reserved.
+\
+\
+[![View read B&K PTI files on File Exchange](https://www.mathworks.com/matlabcentral/images/matlab-file-exchange.svg)](https://mathworks.com/matlabcentral/fileexchange/177264-read-pulse-pti-files)

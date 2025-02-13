@@ -4,8 +4,8 @@
 function [success, y] = read(filepath, options)
 
 arguments (Input)
-    filepath           char {mustBeFile}
-    options.HeaderOnly logical = false
+    filepath           char    {mustBeFile}
+    options.HeaderOnly logical              = false
 end
 
 arguments (Output)
@@ -14,12 +14,10 @@ arguments (Output)
 end
 
 
-y = char.empty();
-
-
 fid = fopen(filepath, 'r', 'l');
 if fid < 0 % failed to open file
     success = false;
+    y = 'Failed to open file.';
     return
 end
 
@@ -34,7 +32,7 @@ if ~strncmpi(str, 'BKSU', 4)
 end
 
 
-HEADER_DONE = false;
+HEADER_DONE     = false;
 CURRENT_SECTION = int8(0); % 0 = init, 1 = general section, 2 = channel information
 
 
@@ -74,7 +72,7 @@ while ~HEADER_DONE
 
     if isprop(S, C{1})
         if isnumeric(S.(C{1}))
-            S.(C{1}) = str2double(C{2});
+            S.(C{1}) = str2double(strrep(C{2}, ',', '.'));
         elseif ischar(S.(C{1}))
             S.(C{1}) = C{2};
         end
@@ -117,14 +115,13 @@ if status ~= 0
 end
 
 
-num_val = y.OffsetStopSample - y.OffsetStartSample;
-data   = zeros(num_val, y.NoChannels, 'single');
+num_val       = y.OffsetStopSample - y.OffsetStartSample;
+data          = zeros(num_val, y.NoChannels, 'single');
 val_per_block = 2048;
-
-num_blocks = num_val/val_per_block;
+num_blocks    = num_val/val_per_block;
 
 try
-    if machine.getSize(filepath) < INDEX_DATA_START + num_val*y.NoChannels*4 % 16-bit pti-file | not any known metadata indicate ADC-bitdepth :/
+    if machine.getSize(filepath) < INDEX_DATA_START + num_val*y.NoChannels*4 % 16-bit pti-file | not any known metadata indicate bitdepth :/
 
         K = [y.ChannelInfo.CorrectionFactor];
 
@@ -175,7 +172,7 @@ try
     while strcmpi(F_XML.State, 'running') && toc(t) < 2
         pause(0.05)
     end
-    y.XML = F_XML.fetchOutputs;
+    y.XML   = F_XML.fetchOutputs;
     success = true;
 catch
     success = false;

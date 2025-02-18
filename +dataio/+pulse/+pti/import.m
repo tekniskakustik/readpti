@@ -24,16 +24,15 @@ end
 
 
 Info = struct( ...
-    'chNames', [], ...
-    'chUnits', [], ...
+    'chNames',             [], ...
+    'chUnits',             [], ...
     'chSensitivityString', [], ...
-    'fs', S.SampleFrequency, ...
-    'internal', struct('pulse', []), ...
-    'numberOfChannels', S.NoChannels, ...
-    'timeFormat', 'yyyy-mm-dd - HH:MM:SS');
+    'fs',                  S.SampleFrequency, ...
+    'internal',            struct('pulse', []), ...
+    'numberOfChannels',    S.NoChannels, ...
+    'timeFormat',          'yyyy-mm-dd - HH:MM:SS');
 
-Info.time = datestr(datevec([S.Date, S.Time], [S.DateFormat, S.TimeFormat]), Info.timeFormat); %#ok<DATST>
-
+Info.time    = datestr(datevec([S.Date, S.Time], [S.DateFormat, S.TimeFormat]), Info.timeFormat); %#ok<DATST>
 Info.chNames = {S.ChannelInfo.SignalName};
 Info.chUnits = {S.ChannelInfo.Unit};
 Info.chSensitivityString = repmat({char.empty()}, 1, S.NoChannels);
@@ -43,12 +42,21 @@ Info.internal.pulse.configuration = S.XML;
 ch_idx = 0;
 for count = 1:numel(S.XML.Signals.Signal)
     if strcmpi(S.XML.Signals.Signal(count).Recorded, 'true')
-        ch_idx = ch_idx + 1;
+        ch_idx  = ch_idx + 1;
         unitstr = char(S.XML.Signals.Signal(count).CalibrationSensitivity.UnitAttribute);
+        K       = S.XML.Signals.Signal(count).CalibrationSensitivity.Text * S.XML.Signals.Signal(count).CalibrationGain;
+        offset  = S.XML.Signals.Signal(count).CalibrationOffset;
+        if isstruct(offset) 
+            if isfield(offset, 'Text')
+                K = K + offset.Text;
+            end
+        elseif isnumeric(offset) && isscalar(offset)
+            K = K + offset;
+        end
         if strcmpi(unitstr, 'V/pa')
-            Info.chSensitivityString{ch_idx} = sprintf('%.5g mV/pa', S.XML.Signals.Signal(count).CalibrationSensitivity.Text * 1e3);
+            Info.chSensitivityString{ch_idx} = sprintf('%.5g mV/pa', K * 1e3);
         else
-            Info.chSensitivityString{ch_idx} = sprintf(['%.5g ', unitstr], S.XML.Signals.Signal(count).CalibrationSensitivity.Text);
+            Info.chSensitivityString{ch_idx} = sprintf(['%.5g ', unitstr], K);
         end
     end
     if ch_idx == S.NoChannels
@@ -57,7 +65,7 @@ for count = 1:numel(S.XML.Signals.Signal)
 end
 
 l = struct( ...
-    'Info', Info, ...
+    'Info',       Info, ...
     'timeSignal', S.TimeSignal);
 
 errorMsg = char.empty();

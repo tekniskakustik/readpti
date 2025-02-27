@@ -45,24 +45,30 @@ while ~HEADER_DONE
     if strcmpi(str, '[SETUP START]')
         CURRENT_SECTION = int8(1);
         continue
+
     elseif strcmpi(str, '[SETUP STOP]')
-        HEADER_DONE = true;
+        HEADER_DONE     = true;
         continue
+
     elseif startsWith(str, '[Channel')
         CURRENT_SECTION = int8(2);
         CURRENT_CHANNEL = int16(str2double(strtrim(strrep(str(9:end), ']', char.empty))));
-        y.ChannelInfo(CURRENT_CHANNEL) = dataio.pulse.pti.channel();
+        y.ChannelInfo(CURRENT_CHANNEL)       = dataio.pulse.pti.channel();
         y.ChannelInfo(CURRENT_CHANNEL).Index = CURRENT_CHANNEL;
         continue
+
     end
 
     switch CURRENT_SECTION
         case 1 % general info
             S = y;
+
         case 2 % channel info
             S = y.ChannelInfo(CURRENT_CHANNEL);
+
         otherwise
             continue
+
     end
 
     C = extractString(str);
@@ -73,8 +79,10 @@ while ~HEADER_DONE
     if isprop(S, C{1})
         if isnumeric(S.(C{1}))
             S.(C{1}) = str2double(strrep(C{2}, ',', '.'));
+
         elseif ischar(S.(C{1}))
             S.(C{1}) = C{2};
+
         end
     end
 end
@@ -115,46 +123,48 @@ if status ~= 0
 end
 
 
-num_val       = y.OffsetStopSample - y.OffsetStartSample;
-data          = zeros(num_val, y.NoChannels, 'single');
-val_per_block = 2048;
-num_blocks    = num_val/val_per_block;
+num_val = y.OffsetStopSample - y.OffsetStartSample;
+data    = zeros(num_val, y.NoChannels, 'single');
+
+
+if ver2num(y.Version) >= 2 % unknown if there are more breaking changes with different versions
+    val_per_block = 1024;
+else
+    val_per_block = 2048;
+end
+num_blocks = num_val/val_per_block;
+
+if machine.getSize(filepath) < INDEX_DATA_START + num_val*y.NoChannels*4 % 16-bit pti-file | not any known metadata indicate bitdepth correctly :(
+    datatype = '16bit';
+else
+    datatype = '24bit';
+end
+
 
 try
-    if machine.getSize(filepath) < INDEX_DATA_START + num_val*y.NoChannels*4 % 16-bit pti-file | not any known metadata indicate bitdepth :/
-
-        K = [y.ChannelInfo.CorrectionFactor];
-
-        for count = 1:num_blocks
-            if count < num_blocks
-                vals_to_read = val_per_block;
-            else
-                vals_to_read = mod(num_val, val_per_block);
-                if vals_to_read == 0
-                    vals_to_read = val_per_block;
-                end
-            end
-            tmp = fread(fid, [vals_to_read + 8, y.NoChannels], 'int16=>double');
-            data(val_per_block*(count-1)+1:val_per_block*(count-1)+vals_to_read, :) = tmp(9:end, :) .* K; % skip first 16 bytes
-        end
+    if strcmpi(datatype, '16bit')
+        K            = [y.ChannelInfo.CorrectionFactor];
+        block_offset = 8; % skip first 16 bytes
+        precision    = 'int16=>double';
 
     else % 24-bit pti-file
+        K            = [y.ChannelInfo.CorrectionFactor] / (2^16-1);
+        block_offset = 4; % skip first 16 bytes
+        precision    = 'int32=>double';
 
-        K = [y.ChannelInfo.CorrectionFactor] / (2^16-1);
+    end
 
-        for count = 1:num_blocks
-            if count < num_blocks
+    for count = 1:num_blocks
+        if count < num_blocks
+            vals_to_read = val_per_block;
+        else
+            vals_to_read = mod(num_val, val_per_block);
+            if vals_to_read == 0
                 vals_to_read = val_per_block;
-            else
-                vals_to_read = mod(num_val, val_per_block);
-                if vals_to_read == 0
-                    vals_to_read = val_per_block;
-                end
             end
-            tmp = fread(fid, [vals_to_read + 4, y.NoChannels], 'int32=>double');
-            data(val_per_block*(count-1)+1:val_per_block*(count-1)+vals_to_read, :) = tmp(5:end, :) .* K; % skip first 16 bytes
         end
-
+        tmp = fread(fid, [vals_to_read + block_offset, y.NoChannels], precision);
+        data(val_per_block*(count-1)+1:val_per_block*(count-1)+vals_to_read, :) = tmp((block_offset+1):end, :) .* K; % skip first 16 bytes
     end
 
     y.TimeSignal = data;
@@ -163,7 +173,9 @@ catch
     fclose(fid);
     success = false;
     return
+
 end
+
 fclose(fid);
 
 
@@ -217,6 +229,23 @@ if options.IgnoreCase
 else
     y = strncmp(str, pat, n);
 end
+
+end
+
+
+
+function y = ver2num(str)
+
+arguments (Input)
+    str char
+end
+
+arguments (Output)
+    y double
+end
+
+C = strsplit(str, '.');
+y = str2double(strjoin(C(1:min(2:end)), '.'));
 
 end
 

@@ -34,9 +34,7 @@ end
 
 HEADER_DONE     = false;
 CURRENT_SECTION = int8(0); % 0 = init, 1 = general section, 2 = channel information
-
-
-y = dataio.pulse.pti.data(); % get empty data object
+y               = dataio.pulse.pti.data(); % get empty data object
 
 
 while ~HEADER_DONE
@@ -123,36 +121,38 @@ if status ~= 0
 end
 
 
-num_val = y.OffsetStopSample - y.OffsetStartSample;
-data    = zeros(num_val, y.NoChannels, 'single');
+num_val  = y.OffsetStopSample - y.OffsetStartSample;
+data     = zeros(num_val, y.NoChannels, 'single');
+filesize = machine.getSize(filepath);
 
 
-if ver2num(y.Version) >= 2 % unknown if there are more breaking changes with different versions
-    val_per_block = 1024;
+if filesize < INDEX_DATA_START + num_val*y.NoChannels*4 % 16-bit pti-file | not any known metadata indicate bitdepth correctly :(
+    bytes_per_sample = 2; % 16-bit
 else
-    val_per_block = 2048;
+    bytes_per_sample = 4; % 24-bit as 32-bit values
 end
-num_blocks = num_val/val_per_block;
 
-if machine.getSize(filepath) < INDEX_DATA_START + num_val*y.NoChannels*4 % 16-bit pti-file | not any known metadata indicate bitdepth correctly :(
-    datatype = '16bit';
-else
-    datatype = '24bit';
+
+val_per_block = 2048;
+num_blocks    = num_val/val_per_block;
+if (filesize - (INDEX_DATA_START + num_val*y.NoChannels*bytes_per_sample) - num_blocks*16) > 122880 % note: 122880 value require further tuning
+    val_per_block = 1024;
+    num_blocks    = num_val/val_per_block;
 end
 
 
 try
-    if strcmpi(datatype, '16bit')
-        K            = [y.ChannelInfo.CorrectionFactor];
-        block_offset = 8; % skip first 16 bytes
-        precision    = 'int16=>double';
+    if bytes_per_sample == 2
+        K         = [y.ChannelInfo.CorrectionFactor];
+        precision = 'int16=>double';
 
     else % 24-bit pti-file
-        K            = [y.ChannelInfo.CorrectionFactor] / (2^16-1);
-        block_offset = 4; % skip first 16 bytes
-        precision    = 'int32=>double';
+        K         = [y.ChannelInfo.CorrectionFactor] / (2^16-1);
+        precision = 'int32=>double';
 
     end
+
+    block_offset = 16/bytes_per_sample; % skip first 16 bytes
 
     for count = 1:num_blocks
         if count < num_blocks
@@ -195,7 +195,8 @@ delete(temp_filepath);
 
 
 end % end of main function
-
+% -------------------------------------------------------------------------
+% -------------------------------------------------------------------------
 
 
 function y = extractString(str)
@@ -204,10 +205,13 @@ arguments (Output)
     y cell
 end
 
+
 y = strtrim(strsplit(str, '='));
 
 end
 
+
+% -------------------------------------------------------------------------
 
 
 function y = startsWith(str, pat, options)
@@ -222,6 +226,7 @@ arguments (Output)
     y logical
 end
 
+
 n = numel(pat);
 
 if options.IgnoreCase
@@ -229,23 +234,6 @@ if options.IgnoreCase
 else
     y = strncmp(str, pat, n);
 end
-
-end
-
-
-
-function y = ver2num(str)
-
-arguments (Input)
-    str char
-end
-
-arguments (Output)
-    y double
-end
-
-C = strsplit(str, '.');
-y = str2double(strjoin(C(1:min(2:end)), '.'));
 
 end
 

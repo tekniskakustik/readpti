@@ -126,7 +126,7 @@ data     = zeros(num_val, y.NoChannels, 'single');
 filesize = machine.getSize(filepath);
 
 
-if filesize < INDEX_DATA_START + num_val*y.NoChannels*4 % 16-bit pti-file | not any known metadata indicate bitdepth correctly :(
+if filesize < INDEX_DATA_START + num_val*y.NoChannels*4 && filesize > INDEX_DATA_START + num_val*y.NoChannels*2 % 16-bit pti-file | not any known metadata indicate bitdepth correctly :(
     bytes_per_sample = 2; % 16-bit
 else
     bytes_per_sample = 4; % 24-bit as 32-bit values
@@ -135,7 +135,9 @@ end
 
 val_per_block = 2048;
 num_blocks    = num_val/val_per_block;
-if (filesize - (INDEX_DATA_START + num_val*y.NoChannels*bytes_per_sample) - num_blocks*16) > 122880 % note: 122880 value require further tuning
+if filesize-INDEX_DATA_START-num_blocks*(y.NoChannels*(16+val_per_block*bytes_per_sample)) ~= 0 && ...
+        filesize-INDEX_DATA_START-2*num_blocks*(y.NoChannels*(16+val_per_block/2*bytes_per_sample)) >= 0
+
     val_per_block = 1024;
     num_blocks    = num_val/val_per_block;
 end
@@ -166,7 +168,6 @@ try
         tmp = fread(fid, [vals_to_read + block_offset, y.NoChannels], precision);
         data(val_per_block*(count-1)+1:val_per_block*(count-1)+vals_to_read, :) = tmp((block_offset+1):end, :) .* K; % skip first 16 bytes
     end
-
     y.TimeSignal = data;
 
 catch

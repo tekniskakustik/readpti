@@ -4,8 +4,9 @@
 function [success, y] = read(filepath, options)
 
 arguments (Input)
-    filepath           char    {mustBeFile}
-    options.HeaderOnly logical              = false
+    filepath               char    {mustBeFile}
+    options.HeaderOnly     logical {mustBeLogicalScalar} = false
+    options.IgnoreXMLError logical {mustBeLogicalScalar} = false
 end
 
 arguments (Output)
@@ -22,9 +23,9 @@ if fid < 0 % failed to open file
 end
 
 
-% read first line, if not ";" -> fail
-str = fgets(fid, 4);
-if ~strncmpi(str, 'BKSU', 4)
+% read first four characters
+str = fread(fid, 4, 'uint8=>uint8');
+if ~isequal(str, uint8([66; 75; 83; 85]))
     fclose(fid);
     success = false;
     y = 'Failed to read pre-header, file is not a B&K Pulse PTI file?';
@@ -32,9 +33,9 @@ if ~strncmpi(str, 'BKSU', 4)
 end
 
 
-HEADER_DONE     = false;
+HEADER_DONE = false;
 CURRENT_SECTION = int8(0); % 0 = init, 1 = general section, 2 = channel information
-y               = dataio.pulse.pti.data(); % get empty data object
+y = dataio.pulse.pti.data(); % get empty data object
 
 
 while ~HEADER_DONE
@@ -45,13 +46,13 @@ while ~HEADER_DONE
         continue
 
     elseif strcmpi(str, '[SETUP STOP]')
-        HEADER_DONE     = true;
+        HEADER_DONE = true;
         continue
 
     elseif startsWith(str, '[Channel')
         CURRENT_SECTION = int8(2);
-        CURRENT_CHANNEL = int16(str2double(strtrim(strrep(str(9:end), ']', char.empty))));
-        y.ChannelInfo(CURRENT_CHANNEL)       = dataio.pulse.pti.channel();
+        CURRENT_CHANNEL = int16(sscanf(str, '[Channel%u]', 1));
+        y.ChannelInfo(CURRENT_CHANNEL) = dataio.pulse.pti.channel();
         y.ChannelInfo(CURRENT_CHANNEL).Index = CURRENT_CHANNEL;
         continue
 
@@ -75,7 +76,10 @@ while ~HEADER_DONE
     end
 
     if isprop(S, C{1})
-        if isnumeric(S.(C{1}))
+        if isinteger(S.(C{1}))
+            S.(C{1}) = sscanf(C{2}, '%d', 1);
+
+        elseif isnumeric(S.(C{1}))
             S.(C{1}) = str2double(strrep(C{2}, ',', '.'));
 
         elseif ischar(S.(C{1}))
@@ -121,8 +125,8 @@ if status ~= 0
 end
 
 
-num_val  = y.OffsetStopSample - y.OffsetStartSample;
-data     = zeros(num_val, y.NoChannels, 'single');
+num_val = y.OffsetStopSample - y.OffsetStartSample;
+data = zeros(num_val, y.NoChannels, 'single');
 filesize = machine.getSize(filepath);
 
 
@@ -134,22 +138,22 @@ end
 
 
 val_per_block = 2048;
-num_blocks    = num_val/val_per_block;
+num_blocks = num_val/val_per_block;
 if filesize-INDEX_DATA_START-num_blocks*(y.NoChannels*(16+val_per_block*bytes_per_sample)) ~= 0 && ...
         filesize-INDEX_DATA_START-2*num_blocks*(y.NoChannels*(16+val_per_block/2*bytes_per_sample)) >= 0
 
     val_per_block = 1024;
-    num_blocks    = num_val/val_per_block;
+    num_blocks = num_val/val_per_block;
 end
 
 
 try
     if bytes_per_sample == 2
-        K         = [y.ChannelInfo.CorrectionFactor];
+        K = [y.ChannelInfo.CorrectionFactor];
         precision = 'int16=>double';
 
     else % 24-bit pti-file
-        K         = [y.ChannelInfo.CorrectionFactor] / (2^16-1);
+        K = [y.ChannelInfo.CorrectionFactor] / (2^16-1);
         precision = 'int32=>double';
 
     end
@@ -183,12 +187,16 @@ fclose(fid);
 try
     t = tic();
     while strcmpi(F_XML.State, 'running') && toc(t) < 2
-        pause(0.05)
+        pause(0.02)
     end
-    y.XML   = F_XML.fetchOutputs;
+    y.XML = F_XML.fetchOutputs;
     success = true;
 catch
-    success = false;
+    if ~options.IgnoreXMLError
+        success = false;
+    else
+        success = true;
+    end
 end
 
 delete(F_XML);
@@ -207,7 +215,7 @@ arguments (Output)
 end
 
 
-y = strtrim(strsplit(str, '='));
+[y, ~] = regexp(str, '=', 'split', 'match');
 
 end
 

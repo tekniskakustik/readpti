@@ -3,7 +3,7 @@
 #### Read file, using PTI structure:
 [success, S] = dataio.pulse.pti.read(filepath);
 #### Read and convert file, according to the [Tamara data specification](https://www.tamara.app/tamaraFileSpecification.pdf):
-[success, S] = dataio.pulse.pti.import(filepath);
+[S, errorMessage] = dataio.pulse.pti.import(filepath);
 \
 \
 \

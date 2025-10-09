@@ -5,7 +5,7 @@ function [l, errorMsg] = import(filepath, options)
 
 arguments (Input)
     filepath               char    {mustBeFile}
-    options.IgnoreXMLError logical {mustBeLogicalScalar} = false
+    options.IgnoreXMLError logical              = false
 end
 
 arguments (Output)

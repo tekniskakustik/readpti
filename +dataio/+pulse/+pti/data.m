@@ -18,7 +18,7 @@ classdef data < matlab.mixin.SetGet & matlab.mixin.Copyable
     end
 
     properties (Hidden = true)
-        HeaderVersion      int16 {mustBeNumericScalarOrEmpty}
+        HeaderVersion      int16
         RECInfoSectionSize int64
         RECInfoSectionPos  int64
         OffsetStartSample  int64

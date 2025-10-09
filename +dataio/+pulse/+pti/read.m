@@ -5,8 +5,8 @@ function [success, y] = read(filepath, options)
 
 arguments (Input)
     filepath               char    {mustBeFile}
-    options.HeaderOnly     logical {mustBeLogicalScalar} = false
-    options.IgnoreXMLError logical {mustBeLogicalScalar} = false
+    options.HeaderOnly     logical              = false
+    options.IgnoreXMLError logical              = false
 end
 
 arguments (Output)
@@ -226,8 +226,8 @@ end
 function y = startsWith(str, pat, options)
 
 arguments (Input)
-    str char
-    pat char
+    str                char
+    pat                char
     options.IgnoreCase logical = true
 end
 

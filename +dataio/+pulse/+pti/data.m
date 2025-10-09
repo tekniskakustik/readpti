@@ -4,13 +4,13 @@
 classdef data < matlab.mixin.SetGet & matlab.mixin.Copyable
 
     properties
-        ChannelInfo        dataio.pulse.pti.channel               
+        ChannelInfo        dataio.pulse.pti.channel
         SampleFrequency    double
         NoChannels         int64
         DataType           char
         DataBitSize        int8
         FormatID           char
-        Version            char        
+        Version            char
         Date               char
         Time               char
         TimeSignal         single % not in PTI file
@@ -18,7 +18,7 @@ classdef data < matlab.mixin.SetGet & matlab.mixin.Copyable
     end
 
     properties (Hidden = true)
-        HeaderVersion      int16 {mustBeNumericScalarOrEmpty} 
+        HeaderVersion      int16 {mustBeNumericScalarOrEmpty}
         RECInfoSectionSize int64
         RECInfoSectionPos  int64
         OffsetStartSample  int64

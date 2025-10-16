@@ -60,8 +60,8 @@ for count = 1:numel(S.XML.Signals.Signal)
         elseif isnumeric(offset) && isscalar(offset)
             K = K + offset;
         end
-        if strcmpi(unitstr, 'V/pa')
-            Info.chSensitivityString{ch_idx} = sprintf('%.8g mV/pa', K * 1e3);
+        if strcmpi(unitstr, 'V/Pa')
+            Info.chSensitivityString{ch_idx} = sprintf('%.8g mV/Pa', K * 1e3);
         else
             Info.chSensitivityString{ch_idx} = sprintf(['%.8g ', unitstr], K);
         end

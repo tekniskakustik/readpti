@@ -186,8 +186,8 @@ fclose(fid);
 
 try
     t = tic();
-    while strcmpi(F_XML.State, 'running') && toc(t) < 2
-        pause(0.02)
+    while any(strcmpi(F_XML.State, {'running', 'queued'})) && toc(t) < 2
+        pause(0.05)
     end
     y.XML = F_XML.fetchOutputs;
     success = true;
